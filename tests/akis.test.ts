@@ -164,8 +164,10 @@ test('hız grafiği: vektör hâli tek parçadır ve genişliğe esner', () => {
   // Yüzey resmi satırın genişliğine çeker; oran korunmaz ki satır hiç taşmasın.
   expect(svg.includes('preserveAspectRatio="none"')).toBe(true)
   // Sıfır örnek çubuk bırakmaz: üç çubuk, en yenisi en sağda ve en uzun.
-  expect(svg.match(/M\d+ \d+h4/g)).toEqual(['M37 18h4', 'M43 11h4', 'M55 1h4'])
+  expect(svg.match(/M\d+ \d+h4/g)).toEqual(['M37 17h4', 'M43 7h4', 'M55 1h4'])
   expect(sparkSvg([], 10, '#06B6D4').includes('<path')).toBe(false)
+  // Tek bir sıçrama ölçeği belirlemez: öbür çubuklar yine okunur boydadır, sıçrama tepede kırpılır.
+  expect(sparkline([200, 210, 190, 205, 200, 195, 210, 200, 205, 9000], 10)).toBe('▆▆▆▆▆▆▆▆▆█')
   expect(sparkSvg(Array.from({ length: 500 }, () => 99), 240, '#06B6D4').length < 9000).toBe(true)
 })
 

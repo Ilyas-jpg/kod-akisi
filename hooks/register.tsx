@@ -823,7 +823,7 @@ function begin(isFresh: boolean): void {
     S.main.lastKind = ''
     S.tools = 0
     S.tokens = 0
-    S.speeds = []
+    // Hız geçmişi turlar arasında silinmez: grafik her turda boş başlamaz.
     S.typedSeen = S.typed
     S.elapsedMs = 0
     S.startedAt = now()
@@ -1272,7 +1272,9 @@ function agentRow(d: Draw, row: AgentRow) {
   const { Box, Text } = d.t
   const look = AGENT_LOOKS[row.status]
   const isRunning = row.status === 'running'
-  const room = d.cols - 2 - AGENT_W - 1 - row.meta.length - 1
+  // Dar panelde sayaçtan yalnız süre kalır ki işin adına yer açılsın.
+  const meta = d.cols - 2 - AGENT_W - 1 - row.meta.length - 1 < 8 ? (row.meta.split(' · ').pop() ?? '') : row.meta
+  const room = d.cols - 2 - AGENT_W - 1 - meta.length - 1
 
   return (
     <Box>
@@ -1290,7 +1292,7 @@ function agentRow(d: Draw, row: AgentRow) {
         </Text>
       </Box>
       <Box flexShrink={0} marginLeft={1}>
-        <Text dimColor>{row.meta}</Text>
+        <Text dimColor>{meta}</Text>
       </Box>
     </Box>
   )

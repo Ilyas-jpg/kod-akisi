@@ -1,6 +1,6 @@
 {
   "name": "kod-akisi",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Claude çalışırken yazdığı kodu, düzenlemeleri, komutları ve düşünce metnini yan panelde canlı akıtır; alt ajanları da izler.",
   "author": { "name": "İlyas Saltay", "url": "https://ilyassaltay.com" },
   "homepage": "https://github.com/Ilyas-jpg/kod-akisi",

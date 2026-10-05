@@ -599,6 +599,18 @@ export function fitHunks(
 
 const BARS = '▁▂▃▄▅▆▇█'
 
+/**
+ * Grafiğin tepe değeri. En büyük örnek değil, örneklerin onda dokuzunun altında
+ * kaldığı değer ölçü alınır: tek bir sıçrama (bir aracın argümanı tek parçada
+ * geldi) öbür bütün çubukları yere yapıştırmasın. Sıçrama tepede kırpılır.
+ */
+function peakOf(shown: readonly number[]): number {
+  const sorted = [...shown].sort((a, b) => a - b)
+  const typical = sorted[Math.floor((sorted.length - 1) * 0.9)] ?? 0
+
+  return Math.max(120, typical * 1.4)
+}
+
 /** Hız örneklerinden blok karakterli mini grafik; en yeni örnek sağda. */
 export function sparkline(samples: readonly number[], width: number): string {
   if (width <= 0) {
@@ -606,7 +618,7 @@ export function sparkline(samples: readonly number[], width: number): string {
   }
 
   const shown = samples.slice(-width)
-  const top = Math.max(120, ...shown)
+  const top = peakOf(shown)
 
   return shown
     .map(value => BARS.charAt(Math.min(7, Math.floor((Math.max(0, value) / top) * 7.999))))
@@ -647,15 +659,15 @@ export const SPARK_HEIGHT = 22
 export function sparkSvg(samples: readonly number[], bars: number, color: string): string {
   const count = Math.max(8, Math.floor(bars))
   const shown = samples.slice(-count)
-  const top = Math.max(120, ...shown)
+  const top = peakOf(shown)
   const width = count * SPARK_PITCH
   const floor = SPARK_HEIGHT - 1
   const first = count - shown.length
   let path = ''
 
   shown.forEach((value, at) => {
-    // Sıfırdan büyük her örnek en az iki piksellik bir çubuk bırakır.
-    const height = value > 0 ? Math.max(2, Math.round((value / top) * (floor - 1))) : 0
+    // Sıfırdan büyük her örnek en az iki piksellik bir çubuk bırakır; tepeyi aşan kırpılır.
+    const height = value > 0 ? clamp(Math.round((value / top) * (floor - 1)), 2, floor - 1) : 0
 
     if (height > 0) {
       const x = (first + at) * SPARK_PITCH + 1
