@@ -39,11 +39,11 @@ mkdir -p ~/.claude/skills/kod-akisi && curl -fsSL https://github.com/Ilyas-jpg/k
 `claude` komutu kuruluysa:
 
 ```bash
-claude plugin marketplace add Ilyas-jpg/kod-akisi
+claude plugin marketplace add https://github.com/Ilyas-jpg/kod-akisi
 claude plugin install kod-akisi@ilyassaltay
 ```
 
-Claude Code terminalinin içinden aynısı: `/plugin marketplace add Ilyas-jpg/kod-akisi`, ardından `/plugin install kod-akisi@ilyassaltay`.
+Claude Code terminalinin içinden aynısı: `/plugin marketplace add https://github.com/Ilyas-jpg/kod-akisi`, ardından `/plugin install kod-akisi@ilyassaltay`.
 
 İki yoldan yalnız birini kullan. İkisi birden kuruluysa Claude Code aynı adlı eklentinin ilkini yükler.
 

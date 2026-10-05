@@ -37,7 +37,7 @@ mkdir -p ~/.claude/skills/kod-akisi && curl -fsSL https://github.com/Ilyas-jpg/k
 ### Plugin manager
 
 ```bash
-claude plugin marketplace add Ilyas-jpg/kod-akisi
+claude plugin marketplace add https://github.com/Ilyas-jpg/kod-akisi
 claude plugin install kod-akisi@ilyassaltay
 ```
 
