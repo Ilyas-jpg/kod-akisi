@@ -1,0 +1,16 @@
+# yapay zeka calisma dosyalari: depoya girmez
+/CLAUDE.md
+/AGENTS.md
+/.claude/
+/scratchpad/
+.shots/
+.backups/
+*.bak
+
+# motorun her makinede kendi yazdigi tip dosyalari
+/.claude-plugin/types/
+/tsconfig.json
+
+node_modules/
+.DS_Store
+Thumbs.db

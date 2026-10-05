@@ -1,0 +1,11 @@
+{
+  "name": "kod-akisi",
+  "version": "1.0.0",
+  "description": "Claude çalışırken yazdığı kodu, düzenlemeleri ve komutları yan panelde canlı akıtır.",
+  "author": { "name": "İlyas Saltay", "url": "https://ilyassaltay.com" },
+  "homepage": "https://github.com/Ilyas-jpg/kod-akisi",
+  "repository": "https://github.com/Ilyas-jpg/kod-akisi",
+  "license": "MIT",
+  "keywords": ["claude-code", "mod", "live", "code-stream", "pane"],
+  "types": "./types/index.d.ts"
+}

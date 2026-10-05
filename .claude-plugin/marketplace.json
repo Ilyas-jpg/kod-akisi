@@ -1,0 +1,20 @@
+{
+  "name": "ilyassaltay",
+  "owner": { "name": "İlyas Saltay", "url": "https://ilyassaltay.com" },
+  "metadata": {
+    "description": "İlyas Saltay'ın Claude Code eklentileri",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "kod-akisi",
+      "source": "./",
+      "description": "Claude çalışırken yazdığı kodu, düzenlemeleri ve komutları yan panelde canlı akıtır.",
+      "version": "1.0.0",
+      "author": { "name": "İlyas Saltay", "url": "https://ilyassaltay.com" },
+      "homepage": "https://github.com/Ilyas-jpg/kod-akisi",
+      "license": "MIT",
+      "keywords": ["claude-code", "mod", "live", "code-stream", "pane"]
+    }
+  ]
+}
