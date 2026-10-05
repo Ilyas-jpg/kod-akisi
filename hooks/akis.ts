@@ -268,13 +268,32 @@ export const CODE_MAX = 9500
 
 export type SourceWindow = { source: string; startLine: number }
 
-/** Metnin son `rows` satırı; `cursor` verilirse son satırın ucuna eklenir. */
+/**
+ * Bir satırın ekranda tuttuğu satır sayısı. `cap` sıfırsa yüzey uzun satırı
+ * kırpar (terminal): her satır tek satırdır. `cap` verilmişse yüzey sarar
+ * (masaüstü): satır, kapasiteye bölündüğü kadar yer tutar.
+ */
+export const lineCost = (line: string, cap: number): number =>
+  cap > 0 ? Math.max(1, Math.ceil(line.length / cap)) : 1
+
+/** Çok satırlı bir kaynağın ekranda tuttuğu toplam satır. */
+export const rowsOf = (source: string, cap: number): number =>
+  source.split('\n').reduce((sum, line) => sum + lineCost(line, cap), 0)
+
+/** Saran yüzeyde tek bir satırın en çok kaç ekran satırı tutmasına izin verilir. */
+const WRAP_ROWS = 4
+
+/**
+ * Metnin sondan `rows` ekran satırına sığan kısmı; `cursor` verilirse son
+ * satırın ucuna eklenir. `cap` için bkz. `lineCost`.
+ */
 export function windowSource(
   text: string,
   firstLine: number,
   rows: number,
   width: number,
   cursor = '',
+  cap = 0,
 ): SourceWindow {
   const lines = text.split('\n')
 
@@ -282,8 +301,31 @@ export function windowSource(
     lines.pop()
   }
 
-  const from = Math.max(0, lines.length - Math.max(1, rows))
-  const shown = lines.slice(from).map(line => fitEnd(line, width))
+  const budget = Math.max(1, rows)
+  // Akan son satırın ucu (imleç) görünür kalsın diye o satır baştan kırpılır.
+  const fit = (line: string, isLast: boolean): string =>
+    cap <= 0
+      ? fitEnd(line, width)
+      : isLast && cursor !== ''
+        ? fitStart(line, cap * WRAP_ROWS - 1)
+        : fitEnd(line, cap * WRAP_ROWS)
+  const shown: string[] = []
+  let used = 0
+  let from = lines.length
+
+  while (from > 0) {
+    const line = fit(lines[from - 1] ?? '', from === lines.length)
+    const cost = lineCost(line, cap)
+
+    if (shown.length > 0 && used + cost > budget) {
+      break
+    }
+
+    shown.unshift(line)
+    used += cost
+    from--
+  }
+
   let startLine = firstLine + from
 
   if (cursor !== '') {
@@ -298,11 +340,6 @@ export function windowSource(
   }
 
   return { source: shown.join('\n'), startLine }
-}
-
-/** Çıktının son `rows` satırı. */
-export function lastLines(text: string, rows: number, width: number): string {
-  return windowSource(text, 1, rows, width).source
 }
 
 /** Araç çıktısının gösterilecek kuyruğu: ANSI'siz, kırpılmış, sondaki boşluklar atılmış. */
@@ -449,8 +486,10 @@ function buildDiff(
   width: number,
   fromEnd: boolean,
   cursor: string,
+  cap: number,
 ): string {
   const out: string[] = []
+  const fit = (line: string): string => fitEnd(line, cap > 0 ? cap * WRAP_ROWS : width)
 
   if (fromEnd) {
     const hunk = hunks[hunks.length - 1]
@@ -459,9 +498,23 @@ function buildDiff(
       return ''
     }
 
-    const skip = Math.max(0, hunk.lines.length - (rows - 1))
+    // Başlık bir satır tutar; kalan bütçeye sondan sığan satırlar alınır.
+    let skip = hunk.lines.length
+    let used = 1
+
+    while (skip > 0) {
+      const cost = lineCost(fit(hunk.lines[skip - 1] ?? ''), cap)
+
+      if (skip < hunk.lines.length && used + cost > rows) {
+        break
+      }
+
+      used += cost
+      skip--
+    }
+
     const skipped = hunk.lines.slice(0, skip)
-    const kept = hunk.lines.slice(skip).map(line => fitEnd(line, width))
+    const kept = hunk.lines.slice(skip).map(fit)
 
     if (kept.length === 0) {
       return ''
@@ -483,14 +536,27 @@ function buildDiff(
         break
       }
 
-      const kept = hunk.lines.slice(0, room - 1).map(line => fitEnd(line, width))
+      const kept: string[] = []
+      let used = 1
+
+      for (const raw of hunk.lines) {
+        const line = fit(raw)
+        const cost = lineCost(line, cap)
+
+        if (used + cost > room) {
+          break
+        }
+
+        kept.push(line)
+        used += cost
+      }
 
       if (kept.length === 0) {
         continue
       }
 
       out.push(hunkHeader(hunk.oldStart, hunk.newStart, kept), ...kept)
-      room -= kept.length + 1
+      room -= used
     }
   }
 
@@ -508,6 +574,7 @@ function buildDiff(
 /**
  * Fark parçalarını `rows` satıra sığan birleşik-fark metnine çevirir; başlık
  * sayıları gösterilen satırlardan yeniden hesaplanır. `fromEnd` akan ucu tutar.
+ * `cap` için bkz. `lineCost`.
  */
 export function fitHunks(
   hunks: readonly Hunk[],
@@ -515,9 +582,10 @@ export function fitHunks(
   width: number,
   fromEnd: boolean,
   cursor = '',
+  cap = 0,
 ): string {
   for (let room = Math.max(2, rows); room >= 2; room = Math.floor(room * 0.7)) {
-    const text = buildDiff(hunks, room, width, fromEnd, cursor)
+    const text = buildDiff(hunks, room, width, fromEnd, cursor, cap)
 
     if (text.length <= CODE_MAX) {
       return text
@@ -544,6 +612,127 @@ export function sparkline(samples: readonly number[], width: number): string {
     .map(value => BARS.charAt(Math.min(7, Math.floor((Math.max(0, value) / top) * 7.999))))
     .join('')
     .padStart(width, '▁')
+}
+
+/**
+ * Aynı grafiğin iki tonu: baştaki henüz veri gelmemiş düz kısım (`flat`) ve
+ * verinin başladığı yerden sonrası (`live`). Terminalde düz kısım soluk çizilir.
+ */
+export function sparkSplit(
+  samples: readonly number[],
+  width: number,
+): { flat: string; live: string } {
+  const line = sparkline(samples, width)
+  const shown = samples.slice(-Math.max(0, width))
+  let lead = 0
+
+  while (lead < shown.length && (shown[lead] ?? 0) <= 0) {
+    lead++
+  }
+
+  const cut = Math.max(0, width - shown.length) + lead
+
+  return { flat: line.slice(0, cut), live: line.slice(cut) }
+}
+
+const SPARK_PITCH = 6
+const SPARK_BAR = 4
+export const SPARK_HEIGHT = 22
+
+/**
+ * Hız grafiğinin vektör hâli (Svg öğesi olan yüzeyler için). Çubuklar sağda
+ * doğar, sola yürürken solar; genişlik yüzeyde esnetilir, bu yüzden yazı tipi
+ * ölçüsüne bağlı değildir ve hiçbir zaman alt satıra taşmaz.
+ */
+export function sparkSvg(samples: readonly number[], bars: number, color: string): string {
+  const count = Math.max(8, Math.floor(bars))
+  const shown = samples.slice(-count)
+  const top = Math.max(120, ...shown)
+  const width = count * SPARK_PITCH
+  const floor = SPARK_HEIGHT - 1
+  const first = count - shown.length
+  let path = ''
+
+  shown.forEach((value, at) => {
+    // Sıfırdan büyük her örnek en az iki piksellik bir çubuk bırakır.
+    const height = value > 0 ? Math.max(2, Math.round((value / top) * (floor - 1))) : 0
+
+    if (height > 0) {
+      const x = (first + at) * SPARK_PITCH + 1
+
+      path += `M${x} ${floor - height}h${SPARK_BAR}v${height}h-${SPARK_BAR}z`
+    }
+  })
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${SPARK_HEIGHT}" viewBox="0 0 ${width} ${SPARK_HEIGHT}" preserveAspectRatio="none">`,
+    `<defs><linearGradient id="iz" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${width}" y2="0">`,
+    `<stop offset="0" stop-color="${color}" stop-opacity="0.1"/>`,
+    `<stop offset="0.6" stop-color="${color}" stop-opacity="0.75"/>`,
+    `<stop offset="1" stop-color="${color}"/>`,
+    '</linearGradient></defs>',
+    `<rect x="0" y="${floor}" width="${width}" height="1" fill="${color}" opacity="0.3"/>`,
+    path === '' ? '' : `<path d="${path}" fill="url(#iz)"/>`,
+    '</svg>',
+  ].join('')
+}
+
+/** Boştayken imzanın yanında duran ince çizgi (Svg öğesi olan yüzeyler için). */
+export const RULE_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="2" viewBox="0 0 600 2" preserveAspectRatio="none">' +
+  '<rect x="0" y="0.5" width="600" height="1" fill="#8A8F98" opacity="0.5"/></svg>'
+
+// --- Akan düz yazı (düşünce) ------------------------------------------------
+
+/**
+ * Düz yazıyı `width` genişliğe kelime kelime sarar ve son `rows` satırı verir:
+ * hücre ızgaralı yüzeyde (terminal) akan metnin ucu hep görünür kalır.
+ */
+export function wrapTail(text: string, width: number, rows: number): string[] {
+  const room = Math.max(8, width)
+  const lines: string[] = []
+  let line = ''
+
+  for (const word of text.split(' ')) {
+    let rest = word
+
+    while (rest.length > room) {
+      if (line !== '') {
+        lines.push(line)
+        line = ''
+      }
+
+      lines.push(rest.slice(0, room))
+      rest = rest.slice(room)
+    }
+
+    if (line === '') {
+      line = rest
+    } else if (line.length + 1 + rest.length <= room) {
+      line = `${line} ${rest}`
+    } else {
+      lines.push(line)
+      line = rest
+    }
+  }
+
+  if (line !== '') {
+    lines.push(line)
+  }
+
+  return lines.slice(-Math.max(1, rows))
+}
+
+/** Metnin son `max` karakteri, kelime başından başlatılır; kesildiyse başına üç nokta gelir. */
+export function tailText(text: string, max: number): string {
+  if (text.length <= max) {
+    return text
+  }
+
+  const cut = text.length - Math.max(1, max)
+  const space = text.indexOf(' ', cut)
+
+  return `…${text.slice(space !== -1 && space - cut < 40 ? space + 1 : cut)}`
 }
 
 const comma = (value: number): string => value.toFixed(1).replace('.', ',')

@@ -9,14 +9,19 @@ import {
   liveHunk,
   newReader,
   newTail,
+  rowsOf,
   shortPath,
+  sparkSplit,
+  sparkSvg,
   sparkline,
   tailLines,
   tailOf,
   tailPush,
+  tailText,
   tailView,
   toHunks,
   windowSource,
+  wrapTail,
 } from '../hooks/akis'
 
 const PANE = 'kod-akisi'
@@ -139,6 +144,54 @@ test('biçim: yol kısaltma ve hız grafiği', () => {
   expect(shortPath(`C:${BS}proje${BS}src${BS}a.ts`, `C:${BS}proje`)).toBe('src/a.ts')
   expect(shortPath('D:/x/y/z/w/a.ts', 'C:/proje')).toBe('…/z/w/a.ts')
   expect(sparkline([0, 60, 120], 5)).toBe('▁▁▁▄█')
+})
+
+test('hız grafiği: veri gelmemiş kısım ayrılır, genişlik hiç aşılmaz', () => {
+  // Baştaki dolgu ve sıfır örnekler soluk kısımdır; veri başladıktan sonraki duraklama canlı kısımda kalır.
+  expect(sparkSplit([0, 0, 60, 0, 120], 8)).toEqual({ flat: '▁▁▁▁▁', live: '▄▁█' })
+  expect(sparkSplit([], 4)).toEqual({ flat: '▁▁▁▁', live: '' })
+
+  const many = Array.from({ length: 300 }, (_, n) => n)
+  const split = sparkSplit(many, 40)
+
+  expect((split.flat + split.live).length).toBe(40)
+})
+
+test('hız grafiği: vektör hâli tek parçadır ve genişliğe esner', () => {
+  const svg = sparkSvg([0, 30, 120, 0, 240], 10, '#06B6D4')
+
+  expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="60" height="22"')).toBe(true)
+  // Yüzey resmi satırın genişliğine çeker; oran korunmaz ki satır hiç taşmasın.
+  expect(svg.includes('preserveAspectRatio="none"')).toBe(true)
+  // Sıfır örnek çubuk bırakmaz: üç çubuk, en yenisi en sağda ve en uzun.
+  expect(svg.match(/M\d+ \d+h4/g)).toEqual(['M37 18h4', 'M43 11h4', 'M55 1h4'])
+  expect(sparkSvg([], 10, '#06B6D4').includes('<path')).toBe(false)
+  expect(sparkSvg(Array.from({ length: 500 }, () => 99), 240, '#06B6D4').length < 9000).toBe(true)
+})
+
+test('düz yazı: kelime kelime sarılır, akan uç görünür kalır', () => {
+  expect(wrapTail('bir iki üç dört beş altı yedi', 10, 2)).toEqual(['dört beş', 'altı yedi'])
+  expect(wrapTail('kısa', 10, 3)).toEqual(['kısa'])
+  expect(wrapTail('abcdefghijklmnop son', 8, 5)).toEqual(['abcdefgh', 'ijklmnop', 'son'])
+  expect(tailText('bir iki üç dört beş', 9)).toBe('…dört beş')
+  expect(tailText('kısa', 9)).toBe('kısa')
+})
+
+test('pencere: saran yüzeyde uzun satırın tuttuğu yer hesaba katılır', () => {
+  const text = ['kısa', 'x'.repeat(45), 'orta uzunlukta bir satır', 'son'].join('\n')
+  const view = windowSource(text, 1, 4, 80, '', 20)
+
+  // 45 karakterlik satır 20 karakterlik kartta üç satır tutar: dört satıra son üç satır sığmaz.
+  expect(view.source).toBe('orta uzunlukta bir satır\nson')
+  expect(view.startLine).toBe(3)
+  expect(rowsOf(view.source, 20) <= 4).toBe(true)
+  // Kırpan yüzeyde her satır tek satırdır.
+  expect(windowSource(text, 1, 4, 80).source.split('\n').length).toBe(4)
+
+  const hunk = { oldStart: 1, newStart: 1, lines: ['+' + 'a'.repeat(50), '+b', '+c'] }
+
+  expect(fitHunks([hunk], 4, 80, true, '', 20)).toBe('@@ -1,0 +2,2 @@\n+b\n+c')
+  expect(fitHunks([hunk], 4, 80, false, '', 20)).toBe(`@@ -1,0 +1,1 @@\n+${'a'.repeat(50)}`)
 })
 
 test('uçtan uca: akan Write, Edit ve komut panelde çizilir', async ($, on) => {
