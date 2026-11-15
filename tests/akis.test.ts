@@ -198,7 +198,8 @@ test('pencere: saran yüzeyde uzun satırın tuttuğu yer hesaba katılır', () 
 
 test('uçtan uca: akan Write, Edit ve komut panelde çizilir', async ($, on) => {
   const clock = mock.clock(on)
-  mock.store(on)
+  // Beklentiler Türkçe arayüze göre; varsayılan dilin (İngilizce) testleri dil.test.ts'te.
+  mock.store(on, { lang: 'tr' })
 
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))

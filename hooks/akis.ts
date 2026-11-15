@@ -1,6 +1,7 @@
 // Kod Akışı: saf mantık. Motorla ($) konuşan her şey register.tsx'te durur.
 
 import type { Hunk } from '../types'
+import { decimal, words } from './dil'
 
 // --- Akan JSON okuyucu ------------------------------------------------------
 
@@ -747,14 +748,14 @@ export function tailText(text: string, max: number): string {
   return `…${text.slice(space !== -1 && space - cut < 40 ? space + 1 : cut)}`
 }
 
-const comma = (value: number): string => value.toFixed(1).replace('.', ',')
+// Ondalık işareti ve saniye kısaltması arayüz diline göre değişir (bkz. dil.ts).
 
 export function fmtCount(n: number): string {
   if (n < 1000) {
     return String(Math.round(n))
   }
 
-  return n < 10_000 ? `${comma(n / 1000)}k` : `${Math.round(n / 1000)}k`
+  return n < 10_000 ? `${decimal(n / 1000)}k` : `${Math.round(n / 1000)}k`
 }
 
 export function fmtMs(ms: number): string {
@@ -763,7 +764,7 @@ export function fmtMs(ms: number): string {
   }
 
   if (ms < 60_000) {
-    return `${comma(ms / 1000)} sn`
+    return `${decimal(ms / 1000)} ${words().second}`
   }
 
   const seconds = Math.floor(ms / 1000)
@@ -772,7 +773,7 @@ export function fmtMs(ms: number): string {
 }
 
 export const fmtSize = (chars: number): string =>
-  chars < 1024 ? `${chars} B` : `${comma(chars / 1024)} KB`
+  chars < 1024 ? `${chars} B` : `${decimal(chars / 1024)} KB`
 
 /** Yolu çalışma dizinine göre kısaltır; dışarıdaysa son üç parçayı bırakır. */
 export function shortPath(path: string, cwd: string): string {

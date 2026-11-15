@@ -1,135 +1,123 @@
 # Kod Akışı
 
-Claude Code çalışırken yazdığı kodu yan panelde canlı gösteren eklenti. · [English](README.en.md)
+**Watch Claude write your code, live, in a pane beside the chat.** A mod for [Claude Code](https://claude.com/claude-code); the name is Turkish for “code stream”. · [Türkçe](README.tr.md)
 
-![Kod Akışı paneli: akış hızı grafiği, akan düşünce metni, satır satır yazılan kod ve olay günlüğü](assets/onizleme.svg)
+![Kod Akışı pane: a stream-rate graph, the thinking text as it flows, code written line by line and an activity log](assets/preview.svg)
 
-<sub>Önizleme temsilidir; panel Claude Code'un kendi yazı tipi ve renk temasıyla çizilir.</sub>
+<sub>The preview is an illustration; the pane is drawn with Claude Code's own font and color theme.</sub>
 
-Claude bir dosya yazarken ekranda çoğu zaman bir bekleme animasyonu ve tıklayınca açılan satırlar olur. Kod Akışı, modelin ürettiği kodu üretildiği anda konuşmanın yanındaki panelde akıtır. Dosyalar satır numarasıyla ve renkli gelir, düzenlemeler eksi/artı fark olarak görünür, komutlar çıktılarıyla birlikte durur. Düşünce metni gönderiliyorsa o da kendi kutusunda akar; alt ajanlar çalışıyorsa her biri kendi şeridinde izlenir.
+While Claude writes a file you usually see a spinner and collapsed rows. Kod Akışı streams the code into a pane beside the conversation as the model produces it: files with line numbers and syntax colors, edits as a live diff, commands with the tail of their output. When thinking text is being sent, it streams in a box of its own; when subagents are at work, each one gets its own row.
 
-Modelden ek bir şey istemez, zaten gelen yanıt akışını çizer. Bu yüzden fazladan token harcamaz.
+It asks the model for nothing extra. It draws the response stream that is already arriving, so it costs no additional tokens.
 
-## Kurulum
+## Install
 
-Güncel bir Claude Code yeterli (2.1.286 sürümüyle denendi). Aşağıdaki iki yoldan birini seç, sonra Claude'u yeniden başlat ya da yeni bir oturum aç.
+In a Claude Code terminal session, type at the prompt:
 
-### Tek komutla
+```
+/plugin install kod-akisi --marketplace Ilyas-jpg/kod-akisi
+```
 
-macOS ve Linux (Terminal):
+Answer `y` to add the marketplace, then pick a scope. From a shell, the same thing is:
 
 ```bash
-git clone https://github.com/Ilyas-jpg/kod-akisi ~/.claude/skills/kod-akisi
+claude plugin install kod-akisi --marketplace Ilyas-jpg/kod-akisi
 ```
 
-Windows (PowerShell):
+In the desktop app, where `/plugin` does not run: click **+** next to the prompt box, then **Plugins**, **Add marketplace** with `Ilyas-jpg/kod-akisi`, then **Add plugin**.
 
-```powershell
-git clone https://github.com/Ilyas-jpg/kod-akisi "$HOME\.claude\skills\kod-akisi"
-```
+Then open a new session. Mods need Claude Code 2.1.287 or later in the terminal, 2.1.286 or later in the desktop app. Kod Akışı was last checked on 2.1.325.
 
-Bilgisayarında git yoksa (macOS ve Linux):
+## Use
 
-```bash
-mkdir -p ~/.claude/skills/kod-akisi && curl -fsSL https://github.com/Ilyas-jpg/kod-akisi/archive/refs/heads/main.tar.gz | tar -xz --strip-components=1 -C ~/.claude/skills/kod-akisi
-```
+The pane opens by itself when a session starts. As soon as Claude writes a file, edits one or runs a command, the code streams in the pane.
 
-### Eklenti yöneticisiyle
-
-`claude` komutu kuruluysa:
-
-```bash
-claude plugin marketplace add https://github.com/Ilyas-jpg/kod-akisi
-claude plugin install kod-akisi@ilyassaltay
-```
-
-Claude Code terminalinin içinden aynısı: `/plugin marketplace add https://github.com/Ilyas-jpg/kod-akisi`, ardından `/plugin install kod-akisi@ilyassaltay`.
-
-İki yoldan yalnız birini kullan. İkisi birden kuruluysa Claude Code aynı adlı eklentinin ilkini yükler.
-
-## Kullanım
-
-Kurulumdan sonra açtığın oturumda panel kendiliğinden gelir. Claude bir dosya yazmaya, düzenlemeye ya da komut çalıştırmaya başladığında kod panelde akar.
-
-| Komut | Ne yapar |
+| Command | What it does |
 |---|---|
-| `/kod-akisi` | Paneli açar. |
-| `/kod-akisi kapat` | Paneli kapatır ve sonraki oturumlarda kendiliğinden açılmasını durdurur. `/kod-akisi` yazınca geri gelir. |
+| `/kod-akisi` | Opens the pane. |
+| `/kod-akisi off` | Closes the pane and stops it from opening by itself. `/kod-akisi` brings it back. |
+| `/kod-akisi tr` | Switches the pane to Turkish. |
+| `/kod-akisi en` | Switches it back to English. |
 
-Terminaldeki Claude Code'da panel geniş pencerede kendiliğinden, dar pencerede `/kod-akisi` yazınca açılır.
+In a terminal the pane opens by itself in a wide window; in a narrow one, type `/kod-akisi`.
 
-## Panelde ne var
+## Language
 
-- **Sahne.** Yazılan dosya satır numarasıyla ve sözdizimi renkleriyle akar, son satırlar izlenir, uçta imleç durur. Düzenlemeler canlı fark olarak gelir; araç bitince gerçek satır numaralı yamaya döner. Komutlar altlarında çıktılarının son satırlarıyla görünür.
-- **Başlık.** Claude'un o an ne yaptığı (düşünüyor, yazıyor, çalıştırıyor, anlatıyor), çalışan alt ajan sayısı, araç sayısı, üretilen token ve süre. Altında akış hızının grafiği: çubuklar sağda doğar, sola yürürken solar.
-- **Düşünce.** Modelin düşünce metni mor çerçeveli kutuda akar, son satırlar izlenir. Araç çalışırken son düşünce soluk hâlde okunur kalır.
-- **Ajanlar.** Çalışan her alt ajan için bir satır: türü, o an yaptığı iş, araç sayısı ve süresi.
-- **Akış satırı.** Anlatım metninin canlı ucu.
-- **Günlük.** Son araç çağrıları, en yenisi üstte. Alt ajanın çağrıları ajanın rengiyle işaretlenir.
+The pane is in English by default and also speaks Turkish. The choice is remembered across sessions, and numbers follow it: `3.4 s` in English, `3,4 sn` in Turkish.
 
-Yalnız `Write` ve `Edit` değil; SQL sorgusu, HTML, uzun bir istem gibi çok satırlı her araç argümanı sahneye çıkar.
+## What is in the pane
 
-## Düşünceyi görmek
+- **Stage.** The file being written streams with line numbers and syntax colors, following the last lines with a cursor at the tip. Edits arrive as a live diff and become the real numbered patch once the tool finishes. Commands show the tail of their output underneath.
+- **Header.** What Claude is doing right now, how many subagents are running, tool count, output tokens and elapsed time. Under it, a graph of the stream rate: bars are born on the right and fade as they walk left.
+- **Thinking.** The model's thinking text streams in a violet box that follows its last lines. While a tool runs, the last thought stays readable, dimmed.
+- **Agents.** One row per running subagent: its type, what it is doing, tool count and time.
+- **Ticker.** The live tip of the narration text.
+- **Log.** Recent tool calls, newest first. A subagent's calls are marked with that agent's color.
 
-Claude Code, düşünce metnini yalnız istenirse gönderir. İstenmediğinde model yine düşünür ama metni akışta yer almaz; panel de çizecek bir şey bulamaz.
+It is not only `Write` and `Edit`: any long or multi-line tool argument, such as a SQL query, HTML or a long prompt, takes the stage.
 
-- **Masaüstü uygulaması:** konuşmanın başlık menüsünden Transcript view › Thinking (ya da Verbose) seç. Yeni oturumların varsayılan görünümü Ayarlar'dan değişir.
-- **Terminal:** `~/.claude/settings.json` içine `"showThinkingSummaries": true` ekle.
+## Seeing the thinking
 
-Gelen metin modelin ham iç konuşması değil, Claude Code'un sunduğu düşünce özetidir. Düşünce gizli akıyorsa panel ilk birkaç turda bunu nasıl açacağını söyleyen soluk bir not gösterir, sonra susar.
+Claude Code sends thinking text only when asked to. Otherwise the model still thinks, but the text is not in the stream and the pane has nothing to draw.
 
-## Alt ajanlar
+- **Desktop app:** in the conversation's title menu choose Transcript view › Thinking (or Verbose). The default view for new sessions is in Settings.
+- **Terminal:** add `"showThinkingSummaries": true` to `~/.claude/settings.json`.
 
-Claude işi alt ajanlara dağıttığında her ajan panelde kendi satırını alır. Sahne, o an kod yazan döngüyü gösterir ve başlığına ajanın adını yazar. Ana konuşma her zaman önceliklidir; paralel ajanlar birbirinin akışını yarıda kesmez, sahne bir akış durulunca öbürüne geçer.
+What arrives is the thinking summary Claude Code provides, not the model's raw inner monologue. When thinking is happening unseen, the pane shows a dim note on how to turn it on for the first few turns, then stays quiet.
 
-Ana konuşma bitse de arka planda çalışan ajan izlenmeye devam eder; başlık kaç ajanın çalıştığını söyler. Terminalde görev listesinden bir ajanın konuşmasını açtığında panel yalnız o ajanı çizer.
+## Subagents
 
-Motorun kendi iç döngüleri (konuşmayı sıkıştırma, hafıza gibi) ajan sayılmaz ve panele karışmaz.
+When Claude hands work to subagents, each one gets a row in the pane. The stage shows whichever loop is writing code at the moment and puts the agent's name in its header. The main conversation always has priority; parallel agents do not cut into each other's stream, the stage moves on once a stream settles.
 
-## Güncelleme ve kaldırma
+An agent running in the background stays visible after the main conversation finishes, and the header says how many are still working. In the terminal, opening an agent's transcript from the task list makes the pane draw that agent alone.
 
-Tek komutla kurduysan:
+The engine's own internal loops (compaction, memory and the like) are not agents and never show up in the pane.
 
-```bash
-git -C ~/.claude/skills/kod-akisi pull
-```
-
-Kaldırmak için `~/.claude/skills/kod-akisi` klasörünü silmen yeterli.
-
-Eklenti yöneticisiyle kurduysan:
+## Updating and removing
 
 ```bash
+claude plugin marketplace update ilyassaltay
 claude plugin update kod-akisi@ilyassaltay
-claude plugin uninstall kod-akisi@ilyassaltay
 ```
 
-## Nasıl çalışır
+Then start a new session. To remove it: `claude plugin uninstall kod-akisi@ilyassaltay`.
 
-Kod Akışı, Claude Code'un mod sistemi (function hooks) üzerinde çalışır. Modelin yanıt akışını `turn.step` olayında dinler, araç argümanlarının JSON'unu parça parça çözer ve paneli çizer. Akışı ve araç sonuçlarını değiştirmez, her parçayı geldiği gibi geçirir.
+If you installed an earlier version with `git clone` into `~/.claude/skills/kod-akisi`, update it with `git -C ~/.claude/skills/kod-akisi pull`, or delete that folder and install as above.
 
-Ağa çıkmaz, dosya okumaz ya da yazmaz, süreç başlatmaz. Motordan istediği şeylerin tamamı şunlardır: panel açma ve kapama, kendi durumunu ve iki küçük tercihi saklama, zamanlayıcı, komut kaydı, bildirim, alt ajan listesini okuma ve hata ayıklama günlüğüne tek satır. `claude plugin validate .claude-plugin/plugin.json` bu dökümü kaynaktan okuyup gösterir.
+## What it can and cannot do
 
-## Sınırlar
+A mod is code that runs with your permissions, so it is fair to ask what this one touches.
 
-- Mod sistemi erken erişimde; bir Claude Code güncellemesiyle değişebilir. Böyle bir durumda panel gelmez, oturumun kendisi etkilenmez.
-- Arayüz Türkçe.
-- Windows'taki masaüstü uygulamasında kullanılarak, terminal yüzeyinde ise Claude Code'un test takımıyla denendi. Kod işletim sistemine özgü bir şey kullanmıyor, bu yüzden macOS ve Linux'ta da çalışması beklenir; orada henüz denenmedi.
+Kod Akışı listens to the model's response stream on `turn.step`, decodes tool arguments from their partial JSON and draws the pane. It never changes the stream or a tool result; every chunk passes through as it came, and a failure in the pane's own code cannot stop a tool call.
 
-## Geliştirme
+It makes no network, file system or process calls. Everything it asks of the engine: opening and closing its pane, keeping its own state and three small preferences (open by itself, language, how often the thinking hint was shown), timers, registering its command, a toast, reading the list of subagents and one line in the debug log. You do not have to take that on trust:
+
+```bash
+claude plugin validate .claude-plugin/plugin.json
+```
+
+prints every hook and every engine call, read off the source.
+
+## Limits
+
+- The mods API can change with a Claude Code update. If it does, the pane does not appear; the session itself is unaffected.
+- Used in the Windows desktop app and exercised on the terminal surface through Claude Code's test kit. Nothing in the code is specific to an operating system, so it is expected to work on macOS and Linux; it has not been tried there yet, nor in the VS Code extension.
+
+## Develop
 
 ```bash
 claude plugin validate .claude-plugin/plugin.json
 claude plugin test .
 ```
 
-İlk komut kancaları ve motor çağrılarını Claude Code'un gözünden okur. İkincisi sahte bir model akışıyla paneli masaüstü ve terminal yüzeyinde çizer; `tests/yerlesim.test.ts` panelin düz metin önizlemesini de basar.
+The first reads the hooks and engine calls the way Claude Code does. The second replays a scripted model stream and draws the pane on the desktop and terminal surfaces, in both languages; `tests/yerlesim.test.ts` also prints a plain-text preview of the pane.
 
-Terminal bir hücre ızgarasıdır, masaüstü ise yazıyı orantılı yazı tipiyle çizer. Bu yüzden satırlar hem sütuna göre kırpılır hem esnek kutularla dizilir; hız grafiği terminalde blok karakterlerle, öbür yüzeylerde genişliğe esneyen vektörle çizilir.
+The terminal is a grid of cells, while the desktop app draws text in a proportional font. So rows are both fitted to columns and laid out with flexible boxes, and the speed graph is drawn with block characters in the terminal and as a vector that stretches to the row's width everywhere else.
 
-Kaynak üç dosyadır: `hooks/register.tsx` (kancalar ve çizim), `hooks/akis.ts` (akan JSON okuyucu, kuyruk tamponu, fark üretimi), `types/index.d.ts` (panelin durum sözleşmesi).
+The source is four files: `hooks/register.tsx` (hooks and drawing), `hooks/akis.ts` (streaming JSON reader, tail buffer, diffs), `hooks/dil.ts` (interface language) and `types/index.d.ts` (the pane's state contract). File names and comments are in Turkish. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
-## Lisans
+## License
 
-[MIT](LICENSE). Yapan: İlyas Saltay · [ilyassaltay.com](https://ilyassaltay.com)
+[MIT](LICENSE). Made by İlyas Saltay · [ilyassaltay.com](https://ilyassaltay.com)
 
-Claude Code ile birlikte geliştirildi; doğrulama ve testler depoda.
+Built together with Claude Code; validation and tests are in the repository.

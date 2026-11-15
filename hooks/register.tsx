@@ -50,9 +50,9 @@ import {
   wrapTail,
 } from './akis'
 import type { Reader, Tail } from './akis'
+import { TITLE, readArg, setLang, toLang, words } from './dil'
 
 const PANE = 'kod-akisi'
-const TITLE = 'Kod Akışı'
 const SITE = 'ilyassaltay.com'
 const feedRef = { plugin: 'kod-akisi', key: 'feed' } as const
 const closedRef = { plugin: 'kod-akisi', key: 'isClosed' } as const
@@ -95,22 +95,23 @@ const LANE = '▎'
 
 const KIND_COLOR: Record<Kind, string> = { write: CYAN, edit: PINK, shell: AMBER, other: BLUE }
 
-const PHASES: Record<Phase, { label: string; color: string }> = {
-  idle: { label: 'hazır', color: GREEN },
-  thinking: { label: 'düşünüyor', color: VIOLET },
-  talking: { label: 'anlatıyor', color: BLUE },
-  writing: { label: 'yazıyor', color: CYAN },
-  running: { label: 'çalıştırıyor', color: AMBER },
+// Evre ve durum adları dile göre değişir (dil.ts); burada yalnız görünüş durur.
+const PHASE_COLOR: Record<Phase, string> = {
+  idle: GREEN,
+  thinking: VIOLET,
+  talking: BLUE,
+  writing: CYAN,
+  running: AMBER,
 }
 
-const LOOKS: Record<Status, { glyph: string; color: string; label: string; isDim: boolean }> = {
-  streaming: { glyph: '▸', color: CYAN, label: 'yazılıyor', isDim: false },
-  ready: { glyph: '◇', color: BLUE, label: 'sırada', isDim: false },
-  running: { glyph: '▸', color: AMBER, label: 'çalışıyor', isDim: false },
-  done: { glyph: '✓', color: GREEN, label: 'tamam', isDim: true },
-  error: { glyph: '✗', color: RED, label: 'hata', isDim: false },
-  denied: { glyph: '⊘', color: AMBER, label: 'reddedildi', isDim: false },
-  stopped: { glyph: '◌', color: AMBER, label: 'durduruldu', isDim: true },
+const LOOKS: Record<Status, { glyph: string; color: string; isDim: boolean }> = {
+  streaming: { glyph: '▸', color: CYAN, isDim: false },
+  ready: { glyph: '◇', color: BLUE, isDim: false },
+  running: { glyph: '▸', color: AMBER, isDim: false },
+  done: { glyph: '✓', color: GREEN, isDim: true },
+  error: { glyph: '✗', color: RED, isDim: false },
+  denied: { glyph: '⊘', color: AMBER, isDim: false },
+  stopped: { glyph: '◌', color: AMBER, isDim: true },
 }
 
 const AGENT_LOOKS: Record<AgentStatus, { glyph: string; color: string; isDim: boolean }> = {
@@ -118,14 +119,6 @@ const AGENT_LOOKS: Record<AgentStatus, { glyph: string; color: string; isDim: bo
   done: { glyph: '✓', color: GREEN, isDim: true },
   error: { glyph: '✗', color: RED, isDim: false },
   stopped: { glyph: '◌', color: AMBER, isDim: true },
-}
-
-/** Düşünce metni gelmiyorsa nasıl açılacağı; yüzeye göre yol farklıdır. */
-const HINTS = {
-  desktop:
-    'Düşünce metni bu oturuma gönderilmiyor. Başlık menüsünden Transcript view › Thinking seçince burada akar.',
-  other:
-    'Düşünce metni bu oturuma gönderilmiyor. Ayarlarda showThinkingSummaries açılınca burada akar.',
 }
 
 /** Sahneye çıkan araçlar: hangi argüman akar, hangi dille boyanır. */
@@ -300,6 +293,8 @@ const S = {
   canHint: false,
   isHinting: false,
   hintTurns: 0,
+  /** Depodaki dil tercihi bu yüklemede okundu mu. */
+  isLangRead: false,
   pending: undefined as Promise<void> | undefined,
   timer: undefined as Timer | undefined,
   beat: undefined as Timer | undefined,
@@ -365,7 +360,7 @@ function reveal(track: Track, label: string, task: string): void {
     return
   }
 
-  track.label = oneLine(label) || track.label || 'ajan'
+  track.label = oneLine(label) || track.label || words().agent
   track.task = oneLine(task) || track.task
 
   if (!track.isKnown) {
@@ -534,7 +529,7 @@ function toRow(live: Live): Row {
   if (live.kind === 'edit' && live.hunks.length > 0) {
     meta = changesOf(live)
   } else if (main !== undefined && (live.kind === 'write' || live.kind === 'edit')) {
-    meta = `${tailLines(main)} satır`
+    meta = words().lines(tailLines(main))
   }
 
   return {
@@ -559,7 +554,7 @@ function toStage(live: Live): Stage {
   if (live.kind === 'edit' && live.hunks.length > 0) {
     parts.push(changesOf(live))
   } else if (main !== undefined && live.kind !== 'shell') {
-    parts.push(`${tailLines(main)} satır`, fmtSize(main.chars))
+    parts.push(words().lines(tailLines(main)), fmtSize(main.chars))
   }
 
   if (ms >= 100) {
@@ -603,7 +598,7 @@ function toAgentRow(track: Track): AgentRow {
     label: track.label,
     task: track.task.slice(0, 200),
     doing: oneLine(doing).slice(0, 200),
-    meta: track.tools > 0 ? `${track.tools} araç · ${fmtMs(ms)}` : fmtMs(ms),
+    meta: track.tools > 0 ? `${words().tools(track.tools)} · ${fmtMs(ms)}` : fmtMs(ms),
     status: track.status,
     color: track.color,
   }
@@ -1048,13 +1043,14 @@ const gapOf = (d: Draw): { marginTop?: number } => (d.isTerminal ? {} : { margin
 
 function headerRow(d: Draw, feed: Feed, scope: string) {
   const { Box, Text } = d.t
-  const phase = PHASES[feed.phase]
+  const w = words()
+  const phase = { label: w.phase[feed.phase], color: PHASE_COLOR[feed.phase] }
   const isMain = feed.phase !== 'idle'
-  const agents = feed.busyAgents > 0 ? `${feed.busyAgents} ajan` : ''
+  const agents = feed.busyAgents > 0 ? w.agents(feed.busyAgents) : ''
   let label = phase.label
 
   if (feed.isWorking && !isMain) {
-    label = agents === '' ? 'çalışıyor' : `${agents} çalışıyor`
+    label = agents === '' ? w.busy : w.agentsBusy(agents)
   } else if (feed.isWorking && agents !== '') {
     label = `${phase.label} · ${agents}`
   }
@@ -1062,10 +1058,11 @@ function headerRow(d: Draw, feed: Feed, scope: string) {
   const state = feed.isWorking ? `${d.frame} ${label}` : label
   const title = scope === '' ? TITLE : `${TITLE} › ${scope}`
   const time = fmtMs(feed.elapsedMs)
+  const tools = w.tools(feed.tools)
   // Dar panelde önce token sayısı, sonra araç sayısı düşer.
   const options =
     feed.tools + feed.tokens > 0
-      ? [`${feed.tools} araç · ${fmtCount(feed.tokens)} token · ${time}`, `${feed.tools} araç · ${time}`, time]
+      ? [`${tools} · ${w.tokens(fmtCount(feed.tokens))} · ${time}`, `${tools} · ${time}`, time]
       : []
   const room = d.cols - title.length - 2 - state.length - 2
   const stats = options.find(option => option.length <= room) ?? ''
@@ -1110,7 +1107,7 @@ function pulseRow(d: Draw, feed: Feed) {
     return (
       <Box alignItems="center">
         <Box flexGrow={1} minWidth={0} flexDirection="column">
-          <Svg source={RULE_SVG} alt="ayırıcı çizgi" height={2} />
+          <Svg source={RULE_SVG} alt={words().divider} height={2} />
         </Box>
         <Box flexShrink={0} marginLeft={1}>
           <Link href={`https://${SITE}`} label={SITE} />
@@ -1119,7 +1116,7 @@ function pulseRow(d: Draw, feed: Feed) {
     )
   }
 
-  const speed = `${fmtCount(feed.speeds[feed.speeds.length - 1] ?? 0)} karakter/sn`
+  const speed = `${fmtCount(feed.speeds[feed.speeds.length - 1] ?? 0)} ${words().rate}`
 
   // Terminal hücre ızgarasıdır: blok karakterler tam oturur. Öbür yüzeylerde
   // yazı orantılıdır; grafik vektör çizilir ve satırın genişliğine esner.
@@ -1148,7 +1145,7 @@ function pulseRow(d: Draw, feed: Feed) {
       <Box flexGrow={1} minWidth={0} flexDirection="column">
         <Svg
           source={sparkSvg(feed.speeds, clamp(Math.round((d.cols - 17) * 1.38), 24, SPARK_MAX), CYAN)}
-          alt={`Akış hızı: ${speed}`}
+          alt={words().rateAlt(speed)}
           height={SPARK_HEIGHT}
         />
       </Box>
@@ -1169,7 +1166,8 @@ function tickerRow(d: Draw, feed: Feed, isBoxed: boolean) {
     return <Text> </Text>
   }
 
-  const phase = PHASES[isTalking ? 'talking' : 'thinking']
+  const kind: Phase = isTalking ? 'talking' : 'thinking'
+  const phase = { label: words().phase[kind], color: PHASE_COLOR[kind] }
   const text = isTalking ? feed.ticker : (thought?.text ?? '')
 
   return (
@@ -1232,12 +1230,12 @@ function thoughtBox(d: Draw, thought: Thought, lines: number) {
       <Box>
         <Box flexGrow={1} minWidth={0}>
           <Text bold color={VIOLET} dimColor={isDim}>
-            Düşünce
+            {words().thought}
           </Text>
         </Box>
         <Box flexShrink={0} marginLeft={2}>
           <Text color={thought.isLive ? VIOLET : GREEN} dimColor={isDim}>
-            {thought.isLive ? `${d.frame} akıyor` : 'tamam'}
+            {thought.isLive ? `${d.frame} ${words().flowing}` : words().done}
           </Text>
         </Box>
       </Box>
@@ -1365,8 +1363,9 @@ function stageBox(d: Draw, stage: Stage, rows: number) {
   const cursor = isStreaming ? CURSOR : ''
   const isLive = isStreaming || stage.status === 'running'
   const tool = fitEnd(stage.tool, Math.max(1, inner - 4))
+  const status = words().status[stage.status]
   // Dar panelde önce sayaçlar, sonra ajan adı, en son durum yazısı düşer; başlık hep sığar.
-  let badge = isLive ? `${d.frame} ${look.label}` : look.label
+  let badge = isLive ? `${d.frame} ${status}` : status
   let meta = stage.meta
   let agent = stage.agent === '' ? '' : `${fitEnd(stage.agent, AGENT_W)} ›`
   const roomOf = (): number =>
@@ -1454,7 +1453,7 @@ function stageBox(d: Draw, stage: Stage, rows: number) {
       {source === '' ? <Text dimColor>…</Text> : <Code {...codeProps(stage, source, more)} />}
       {output !== '' && (
         <Text dimColor wrap="truncate-end">
-          {d.isTerminal ? '─'.repeat(Math.max(1, inner)) : 'çıktı'}
+          {d.isTerminal ? '─'.repeat(Math.max(1, inner)) : words().output}
         </Text>
       )}
       {output !== '' && <Code source={output} wrap="truncate-end" />}
@@ -1487,7 +1486,7 @@ function paneTree(d: Draw, feed: Feed, scope: string, rows: number) {
       {headerRow(d, feed, scope)}
       {pulseRow(d, feed)}
       {agents.map(row => agentRow(d, row))}
-      {more > 0 && <Text dimColor wrap="truncate-end">{`  +${more} ajan daha`}</Text>}
+      {more > 0 && <Text dimColor wrap="truncate-end">{`  ${words().moreAgents(more)}`}</Text>}
       {thought !== null && thought.node}
       {hint !== null && hint.node}
     </Box>
@@ -1499,9 +1498,7 @@ function paneTree(d: Draw, feed: Feed, scope: string, rows: number) {
         {top}
         {tickerRow(d, feed, thought !== null)}
         {others.length === 0 && agents.length === 0 && (
-          <Text dimColor>
-            Claude bir dosya yazarken, düzenlerken ya da komut çalıştırırken kod burada canlı akar.
-          </Text>
+          <Text dimColor>{words().empty}</Text>
         )}
         {others.slice(0, Math.max(0, left)).map(row => logRow(d, row, hasLanes))}
       </Box>
@@ -1543,11 +1540,20 @@ export const register: Register = on => {
     S.cwd = e.cwd
     S.canHint = hinted < HINT_SESSIONS
 
+    // Dil tercihi depoda durur; yoksa (ya da okunamadıysa) varsayılan İngilizce.
+    try {
+      setLang(toLang(await $.store.get('lang')) ?? 'en')
+    } catch {
+      setLang('en')
+    }
+
+    S.isLangRead = true
+
     try {
       await $.command.register({
         name: 'kod-akisi',
-        description: 'Kod Akışı panelini açar; "kapat" yazınca kapatır',
-        argumentHint: '[kapat]',
+        description: words().commandDescription,
+        argumentHint: words().commandHint,
       })
     } catch {
       // Komut kaydı düşerse panel yine otomatik açılır.
@@ -1598,7 +1604,7 @@ export const register: Register = on => {
         const opened = await $.ui.open({ id: PANE, title: TITLE })
 
         if (!opened.isPlaced) {
-          $.ui.toast(`${TITLE} hazır: paneli açmak için /kod-akisi yaz`, { timeoutMs: 9000 })
+          $.ui.toast(words().toastReady, { timeoutMs: 9000 })
         }
       } catch {
         // Panel açılamadıysa oturumu rahatsız etme; /kod-akisi her zaman açar.
@@ -1619,11 +1625,24 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'kod-akisi' }, async ($, e) => {
-    if (e.args.trim().toLocaleLowerCase('tr') === 'kapat') {
+    const arg = readArg(e.args)
+
+    if (arg === 'tr' || arg === 'en') {
+      setLang(arg)
+      S.isLangRead = true
+      await $.store.set('lang', arg).catch(() => undefined)
+      // Panel açıksa yeni dille hemen yeniden çizilsin.
+      S.tick++
+      await $.state.set(feedRef, snapshot()).catch(() => undefined)
+
+      return { text: words().langSet }
+    }
+
+    if (arg === 'off') {
       await $.store.set('auto', false).catch(() => undefined)
       await $.ui.close({ id: PANE }).catch(() => undefined)
 
-      return { text: `${TITLE} kapatıldı. Yeniden açmak için /kod-akisi yaz.` }
+      return { text: words().closed }
     }
 
     await $.store.set('auto', true).catch(() => undefined)
@@ -1632,11 +1651,7 @@ export const register: Register = on => {
 
     const opened = await $.ui.open({ id: PANE, title: TITLE })
 
-    return {
-      text: opened.isPlaced
-        ? `${TITLE} paneli açık.`
-        : `${TITLE} paneli şu an yerleştirilemedi: ${opened.reason}`,
-    }
+    return { text: opened.isPlaced ? words().open : words().notPlaced(opened.reason) }
   })
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
@@ -1656,6 +1671,21 @@ export const register: Register = on => {
       hinted: () => Promise.resolve(),
     }
 
+    if (!S.isLangRead) {
+      S.isLangRead = true
+      $.store
+        .get('lang')
+        .then(held => {
+          const lang = toLang(held)
+
+          if (lang !== undefined) {
+            setLang(lang)
+            touch()
+          }
+        })
+        .catch(() => undefined)
+    }
+
     try {
       begin(true)
     } catch {
@@ -1669,7 +1699,7 @@ export const register: Register = on => {
     try {
       if (e.agentId === undefined) {
         finish(e.durationMs)
-        $.ui.log(`tur bitti: ${S.tools} araç, ${S.typed} karakter aktı`, { to: 'debug' })
+        $.ui.log(`turn done: ${S.tools} tools, ${S.typed} chars streamed`, { to: 'debug' })
       } else {
         agentFinished(e.agentId, e.reason === 'error' ? 'error' : e.isAborted ? 'stopped' : 'done')
       }
@@ -1792,7 +1822,7 @@ export const register: Register = on => {
       isTerminal,
       // Kod kartı tek aralıklı yazıyla ve kendi iç boşluğuyla çizilir: sütunların hepsi koda kalmaz.
       cap: isTerminal ? 0 : Math.max(16, Math.floor(cols * 0.9) - 11),
-      hint: e.surface === 'desktop' ? HINTS.desktop : HINTS.other,
+      hint: e.surface === 'desktop' ? words().hintDesktop : words().hintOther,
     }
 
     return paneTree(d, feed, feed === base ? '' : fitEnd(viewed?.label ?? '', AGENT_W), rows)

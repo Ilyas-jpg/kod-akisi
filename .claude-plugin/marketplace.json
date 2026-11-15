@@ -2,15 +2,15 @@
   "name": "ilyassaltay",
   "owner": { "name": "İlyas Saltay", "url": "https://ilyassaltay.com" },
   "metadata": {
-    "description": "İlyas Saltay'ın Claude Code eklentileri",
-    "version": "1.1.1"
+    "description": "Claude Code plugins by İlyas Saltay",
+    "version": "1.2.0"
   },
   "plugins": [
     {
       "name": "kod-akisi",
       "source": "./",
-      "description": "Claude çalışırken yazdığı kodu, düzenlemeleri, komutları ve düşünce metnini yan panelde canlı akıtır; alt ajanları da izler.",
-      "version": "1.1.1",
+      "description": "Streams the code Claude is writing into a side pane, live: files with line numbers, edits as a diff, commands, thinking text and subagents. English and Turkish.",
+      "version": "1.2.0",
       "author": { "name": "İlyas Saltay", "url": "https://ilyassaltay.com" },
       "homepage": "https://github.com/Ilyas-jpg/kod-akisi",
       "license": "MIT",

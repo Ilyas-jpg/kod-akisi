@@ -1,5 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
+import type { Engine } from 'claude-code/testing'
+import type { On } from 'claude-code'
 
+import type { Lang } from '../hooks/dil'
 import { paint, textOf, walk } from './boya'
 import type { Node } from './boya'
 
@@ -34,9 +37,12 @@ const THOUGHT =
   'sarıyor. Grafiği vektör çizip satırın genişliğine esnetirsem yazı tipinden bağımsız olur. Ardından ' +
   'örnek sayısını genişliğe bağlayacağım ki çubuklar yolun ortasında kaybolmasın, sonra testleri çalıştıracağım.'
 
-test('yerleşim: her boyutta, iki yüzeyde de satırlar panele sığar', async ($, on) => {
+/** Aynı oturum iki dilde de oynatılır: etiketlerin boyu değişince hiçbir satır taşmamalı. */
+async function senaryo($: Engine, on: On, lang: Lang): Promise<void> {
   const clock = mock.clock(on)
-  mock.store(on)
+  mock.store(on, { lang })
+  // Önizleme yalnız varsayılan dilde basılır; öbür dil sessizce denetlenir.
+  const isLoud = lang === 'en'
 
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
@@ -144,7 +150,7 @@ test('yerleşim: her boyutta, iki yüzeyde de satırlar panele sığar', async (
         if (surface === 'terminal') {
           const lines = paint(tree, columns)
 
-          if (isShown && (columns === 92 || columns === 60)) {
+          if (isShown && isLoud && (columns === 92 || columns === 60)) {
             show(`\n=== ${at} ===\n${lines.join('\n')}`)
           }
 
@@ -199,4 +205,8 @@ test('yerleşim: her boyutta, iki yüzeyde de satırlar panele sığar', async (
   await $.turn.complete({ answer: 'bitti', reason: 'answer', durationMs: 83_000, isAborted: false, turnId: 't1' })
   await clock.advance(1000)
   await check('tur bitti', true)
-})
+}
+
+test('yerleşim (İngilizce): her boyutta, iki yüzeyde de satırlar panele sığar', ($, on) => senaryo($, on, 'en'))
+
+test('yerleşim (Türkçe): her boyutta, iki yüzeyde de satırlar panele sığar', ($, on) => senaryo($, on, 'tr'))

@@ -30,7 +30,8 @@ function setup($: Engine, on: On, entries?: Record<string, unknown>) {
   const clock = mock.clock(on)
   let script: Chunk[] = []
 
-  mock.store(on, entries)
+  // Bu dosyadaki beklentiler Türkçe arayüze göre yazıldı; varsayılan dil İngilizce.
+  mock.store(on, { lang: 'tr', ...entries })
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
   on('ui.open', () => ({ value: { isPlaced: true as const } }))
